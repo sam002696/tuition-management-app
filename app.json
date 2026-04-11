@@ -2,7 +2,7 @@
   "expo": {
     "name": "TuitionManagementApp",
     "slug": "TuitionManagementApp",
-    "scheme": "tuitionmanagementapp", 
+    "scheme": "tuitionmanagementapp",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -15,7 +15,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.yourco.tuitionmanagementapp" 
+      "bundleIdentifier": "com.yourco.tuitionmanagementapp"
     },
     "android": {
       "adaptiveIcon": {
@@ -23,14 +23,15 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.yourco.tuitionmanagementapp"     
+      "package": "com.yourco.tuitionmanagementapp"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "expo-router",
-      "expo-secure-store"
+      "expo-secure-store",
+      "@react-native-community/datetimepicker"
     ]
   }
 }
