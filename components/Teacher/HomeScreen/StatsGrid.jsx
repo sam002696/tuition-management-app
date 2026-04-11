@@ -1,42 +1,33 @@
-import React from "react";
 import { View, Text, FlatList } from "react-native";
 import { Feather } from "@expo/vector-icons";
 
-const stats = [
+/* tiny helper to build cards from API stats */
+const buildCards = (s = {}) => [
   {
+    key: "students",
     label: "Students",
-    value: "48",
+    value: String(s?.students_total ?? 0),
     icon: "users",
     tint: "#3B82F6", // blue
-    chip: "+2 today",
+    chip:
+      (s?.new_students_today ?? 0) > 0
+        ? `+${s?.new_students_today} today`
+        : null,
   },
   {
-    label: "Revenue",
-    value: "$9.2k",
-    icon: "dollar-sign",
-    tint: "#10B981", // emerald
-    chip: "+12%",
-  },
-  {
+    key: "classes",
     label: "Classes",
-    value: "12",
+    value: String(s?.classes_total ?? 0),
     icon: "book-open",
     tint: "#F59E0B", // amber
-    chip: "3 today",
-  },
-  {
-    label: "Completion",
-    value: "94%",
-    icon: "trending-up",
-    tint: "#EC4899", // pink
-    chip: "+8%",
+    chip: `${s?.classes_today ?? 0} today`,
   },
 ];
 
 const Card = ({ item }) => {
   return (
     <View className="flex-1 rounded-2xl bg-white border border-gray-100 shadow-sm p-4 overflow-hidden">
-      {/* soft backdrop blob */}
+      {/* soft backdrop blobs */}
       <View
         className="absolute -top-6 -right-6 w-24 h-24 rounded-full opacity-10"
         style={{ backgroundColor: item.tint }}
@@ -53,12 +44,17 @@ const Card = ({ item }) => {
         >
           <Feather name={item.icon} size={16} color={item.tint} />
         </View>
-        <Text
-          className="px-2 py-1 rounded-full text-[11px] font-semibold"
-          style={{ color: item.tint, backgroundColor: item.tint + "14" }}
-        >
-          {item.chip}
-        </Text>
+
+        {item.chip ? (
+          <Text
+            className="px-2 py-1 rounded-full text-[11px] font-semibold"
+            style={{ color: item.tint, backgroundColor: item.tint + "14" }}
+          >
+            {item.chip}
+          </Text>
+        ) : (
+          <View />
+        )}
       </View>
 
       <Text className="mt-3 text-2xl font-bold text-gray-900">
@@ -69,11 +65,12 @@ const Card = ({ item }) => {
   );
 };
 
-const StatsGrid = () => {
+const StatsGrid = ({ stats }) => {
+  const cards = buildCards(stats);
   return (
     <FlatList
-      data={stats}
-      keyExtractor={(it) => it.label}
+      data={cards}
+      keyExtractor={(it) => it.key}
       numColumns={2}
       scrollEnabled={false}
       columnWrapperStyle={{ gap: 12 }}

@@ -8,6 +8,12 @@ import {
   registerSuccess,
   registerFailure,
   signedOut,
+  forgotPasswordStart,
+  forgotPasswordSuccess,
+  forgotPasswordFailure,
+  changePasswordStart,
+  changePasswordSuccess,
+  changePasswordFailure,
 } from "../../slices/Auth/authSlice";
 
 import { AUTH_API } from "../../utils/api";
@@ -56,7 +62,8 @@ function* loginSaga({ payload }) {
 
     // role-based redirect
     if (navigate) {
-      const dest = data?.user?.role === "teacher" ? "/" : "/home";
+      // const dest = data?.user?.role === "teacher" ? "/" : "/home";
+      const dest = "/";
       yield call(navigate, dest);
     }
   } catch (error) {
@@ -68,7 +75,7 @@ function* loginSaga({ payload }) {
 
 // Registration Saga
 function* registerSaga({ payload }) {
-  const { registerData } = payload;
+  const { registerData, navigate } = payload || {};
   try {
     yield put(registerStart());
 
@@ -78,14 +85,18 @@ function* registerSaga({ payload }) {
       auth: false,
     });
 
-    const data = response?.data || response;
-    if (data?.status && data.status !== "success") {
-      throw new Error(data.message || "Registration failed.");
-    }
+    // const data = response?.data || response;
+    // if (data?.status && data.status !== "success") {
+    //   throw new Error(data.message || "Registration failed.");
+    // }
 
-    yield put(registerSuccess(data));
+    yield put(registerSuccess());
     notify.success("Registration success", response?.message);
-    // usually navigate handled in component after success
+
+    // Navigate to sign in
+    if (navigate) {
+      yield call(navigate, "/(auth)/signIn");
+    }
   } catch (error) {
     const message = error.message || "Registration failed.";
     notify.error("Registration failed", message);
@@ -106,13 +117,65 @@ export function* logoutSaga({ payload }) {
   yield call(clearToken);
   yield put(signedOut());
 
+  if (!reason) {
+    notify.success("Logged out", "You have been logged out.");
+  }
+
   // OPTIONAL: wipe persisted state (hard reset)
   yield call(purgeStoredState, authPersistConfig);
 
   // Navigate back to Welcome
   if (typeof navigate === "function") {
-    const dest = "/(auth)/welcome"; // or "/welcome"
+    const dest = "/(auth)/welcome";
     yield call(navigate, dest);
+  }
+}
+
+function* forgotPasswordSaga({ payload }) {
+  try {
+    const { email } = payload || {};
+    yield put(forgotPasswordStart());
+
+    const res = yield call(fetcher, AUTH_API.FORGOT_PASSWORD, {
+      method: "POST",
+      body: { email },
+      auth: false,
+    });
+
+    yield put(forgotPasswordSuccess());
+    notify.success(
+      "Forgot password",
+      res?.message || "If that email exists, a reset link was sent."
+    );
+  } catch (error) {
+    const message = error?.message || "Failed to send reset link.";
+    yield put(forgotPasswordFailure(message));
+    notify.error("Forgot password", message);
+  }
+}
+
+// in your auth saga file
+function* changePasswordSaga({ payload }) {
+  const { data } = payload || {};
+  try {
+    // start
+    yield put(changePasswordStart());
+
+    const res = yield call(fetcher, AUTH_API.CHANGE_PASSWORD, {
+      method: "POST",
+      body: data,
+    });
+
+    // success
+    yield put(changePasswordSuccess());
+    notify.success(
+      "Password changed",
+      res?.message || "Password updated successfully."
+    );
+  } catch (error) {
+    const message = error?.message || "Unable to change password.";
+    yield put(changePasswordFailure(message));
+    notify.error("Change password failed", message);
   }
 }
 
@@ -121,4 +184,7 @@ export default function* authSaga() {
   yield takeLatest("LOGIN", loginSaga);
   yield takeLatest("REGISTER", registerSaga);
   yield takeLeading("LOGOUT", logoutSaga);
+  yield takeLatest("FORGOT_PASSWORD", forgotPasswordSaga);
+
+  yield takeLatest("CHANGE_PASSWORD", changePasswordSaga);
 }

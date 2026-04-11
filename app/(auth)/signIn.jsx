@@ -38,6 +38,8 @@ export default function SignIn() {
     });
   };
 
+  const goToForgot = () => router.push("/(auth)/forgotPassword");
+
   return (
     <SafeAreaView className="flex-1 bg-white">
       <KeyboardAvoidingView
@@ -124,9 +126,9 @@ export default function SignIn() {
                 </View>
 
                 <View className="mt-3 items-end">
-                  <Pressable hitSlop={8}>
-                    <Text className="text-[12px] text-gray-500">
-                      Forgot Password?
+                  <Pressable onPress={goToForgot} hitSlop={8}>
+                    <Text className="text-[12px] text-[#1E6DFF] font-semibold underline">
+                      Forgot password?
                     </Text>
                   </Pressable>
                 </View>

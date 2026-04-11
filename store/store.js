@@ -8,6 +8,7 @@ import connectStudentsReducer from "../slices/Teacher/ConnectStudents/connectStu
 import scheduleTuitionEventsReducer from "../slices/Teacher/Schedule/scheduleTuitionEventsSlice";
 import studentManagementReducer from "../slices/Teacher/StudentManagement/studentManagementSlice";
 import notificationsReducer from "../slices/Notification/notificationSlice";
+import teacherHomeReducer from "../slices/Teacher/TeacherHome/teacherHomeSlice";
 import { authPersistConfig } from "./persistConfig";
 
 import { router } from "expo-router";
@@ -24,6 +25,7 @@ export const store = configureStore({
     scheduleTuitionEvents: scheduleTuitionEventsReducer,
     studentManagement: studentManagementReducer,
     notifications: notificationsReducer,
+    teacherHomeData: teacherHomeReducer,
   },
   middleware: (getDefault) =>
     getDefault({

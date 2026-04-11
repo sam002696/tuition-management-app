@@ -20,6 +20,7 @@ export default function AuthRoutesLayout() {
       <Stack.Screen name="welcome" />
       <Stack.Screen name="signIn" />
       <Stack.Screen name="signUp" />
+      <Stack.Screen name="forgotPassword" />
     </Stack>
   );
 }

@@ -5,7 +5,6 @@ import {
   TextInput,
   ActivityIndicator,
 } from "react-native";
-import React from "react";
 import { Ionicons } from "@expo/vector-icons";
 
 const Header = ({
@@ -13,9 +12,8 @@ const Header = ({
   onChangeQuery,
   onClearQuery,
   isSearching,
-  STUDENTS,
-  onRefreshPress, // ⬅️ new
-  refreshing, // ⬅️ new
+  onRefreshPress,
+  refreshing,
 }) => {
   return (
     <>
@@ -69,25 +67,6 @@ const Header = ({
               <Ionicons name="close-circle" size={18} color="white" />
             </TouchableOpacity>
           ) : null}
-        </View>
-
-        {/* Small stats strip */}
-        <View className="mt-4 flex-row gap-2">
-          <View className="flex-1 bg-white/15 rounded-xl p-3">
-            <Text className="text-white/90 text-xs">Active Students</Text>
-            <Text className="text-white font-bold text-lg">
-              {STUDENTS?.length}
-            </Text>
-          </View>
-          <View className="flex-1 bg-white/15 rounded-xl p-3">
-            <Text className="text-white/90 text-xs">Today</Text>
-            <Text className="text-white font-bold text-lg">
-              {new Date().toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-            </Text>
-          </View>
         </View>
       </View>
 

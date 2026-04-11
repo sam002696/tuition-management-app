@@ -50,15 +50,11 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="messages"
+        name="profile"
         options={{
-          title: "Messages",
+          title: "Profile",
           tabBarIcon: ({ color }) => (
-            <Ionicons
-              name="chatbubble-ellipses-outline"
-              size={24}
-              color={color}
-            />
+            <Ionicons name="person-circle-outline" size={24} color={color} />
           ),
         }}
       />

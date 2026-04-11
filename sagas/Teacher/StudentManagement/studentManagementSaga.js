@@ -44,7 +44,6 @@ function* fetchConnectionRequestsSaga(action) {
     const message = error.message || "Something went wrong.";
     yield put(fetchConnectionRequestsFailure(message));
     notify.error("Student connections", message);
-    yield put(loginFailure(message));
   }
 }
 
