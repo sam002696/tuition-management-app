@@ -34,7 +34,7 @@ export default function Header() {
       </View>
 
       {/* ── Divider ── */}
-      <View style={styles.divider} />
+      {/* <View style={styles.divider} /> */}
 
       {/* ── Greeting section ── */}
       <View style={styles.greetingBlock}>
