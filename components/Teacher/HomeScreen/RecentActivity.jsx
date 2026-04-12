@@ -1,11 +1,13 @@
 import { useEffect, useMemo } from "react";
-import { View, Text, TouchableOpacity } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import useAuth from "../../../hooks/useAuth";
 import { useDispatch, useSelector } from "react-redux";
+import useAuth from "../../../hooks/useAuth";
 import ActivityItemSkeleton from "./ActivityItemSkeleton";
+import ShadowCard from "../../ui/ShadowCard";
+import { colors, spacing, radius, borders, getBadgeStyles } from "../../../theme";
 
-/* ---------- time ago ---------- */
+/* ── time ago ── */
 const timeAgo = (d) => {
   const t = typeof d === "string" ? new Date(d) : d;
   const diff = Math.max(0, Date.now() - (t?.getTime?.() ?? 0));
@@ -16,11 +18,10 @@ const timeAgo = (d) => {
   if (h < 24) return `${h}h ago`;
   const days = Math.floor(h / 24);
   if (days < 7) return `${days}d ago`;
-  const w = Math.floor(days / 7);
-  return `${w}w ago`;
+  return `${Math.floor(days / 7)}w ago`;
 };
 
-/* ---------- action (accepted / rejected / pending / info) ---------- */
+/* ── derive action from notification text ── */
 const deriveAction = (title = "", body = "") => {
   const s = `${title} ${body}`.toLowerCase();
   if (/\baccept(ed|s|ance)?\b|approved|confirmed/.test(s)) return "accepted";
@@ -30,153 +31,116 @@ const deriveAction = (title = "", body = "") => {
   return "info";
 };
 
-/* ---------- left icon by notification type ---------- */
-
-// in future we need to add here more types if there are any
-const typeStyle = (notifType) => {
+/* ── notification type → icon + icon-circle style ── */
+const typeConfig = (notifType) => {
   switch (notifType) {
     case "tuition_event":
-      return { icon: "calendar-outline", tint: "#4F46E5" };
+      return {
+        icon: "calendar-outline",
+        iconColor: "#A06000",
+        circleBg: "#FFF8E5",
+      };
     case "connection_request":
-      return { icon: "person-add-outline", tint: "#0EA5E9" };
+      return {
+        icon: "person-add-outline",
+        iconColor: "#1A7AAA",
+        circleBg: "#E8F4FF",
+      };
     default:
-      return { icon: "notifications-outline", tint: "#6B7280" };
+      return {
+        icon: "notifications-outline",
+        iconColor: colors.textMeta,
+        circleBg: colors.offWhite,
+      };
   }
 };
 
-/* ---------- status chip ---------- */
-const statusStyle = (action) => {
+/* ── action → badge variant ── */
+const actionToBadgeVariant = (action) => {
   switch (action) {
     case "accepted":
-      return {
-        bg: "bg-emerald-100",
-        txt: "text-emerald-700",
-        tint: "#059669",
-        icon: "checkmark-circle",
-        label: "Accepted",
-      };
+      return "green";
     case "rejected":
-      return {
-        bg: "bg-rose-100",
-        txt: "text-rose-700",
-        tint: "#BE123C",
-        icon: "close-circle",
-        label: "Rejected",
-      };
+      return "pink";
     case "pending":
-      return {
-        bg: "bg-amber-100",
-        txt: "text-amber-700",
-        tint: "#B45309",
-        icon: "time-outline",
-        label: "Pending",
-      };
+      return "yellow";
     default:
-      return {
-        bg: "bg-blue-100",
-        txt: "text-blue-700",
-        tint: "#2563EB",
-        icon: "information-circle",
-        label: "Info",
-      };
+      return "blue";
   }
 };
 
-function StatusChip({ action }) {
-  const s = statusStyle(action);
-  return (
-    <View className={`px-2 py-0.5 rounded-full flex-row items-center ${s.bg}`}>
-      <Ionicons name={s.icon} size={14} color={s.tint} />
-      <Text className={`ml-1 text-[11px] font-semibold ${s.txt}`}>
-        {s.label}
-      </Text>
-    </View>
-  );
-}
-
+/* ── single activity row ── */
 function ActivityItem({ item, isLast, onPress }) {
-  const ts = typeStyle(item.notifType);
+  const tc = typeConfig(item.notifType);
+  const badgeStyles = getBadgeStyles(actionToBadgeVariant(item.action));
   const when = item.at ? timeAgo(item.at) : "";
 
   return (
     <TouchableOpacity
-      activeOpacity={0.8}
+      activeOpacity={0.75}
       onPress={() => onPress?.(item.original)}
-      className={`px-4 py-3 ${isLast ? "" : "border-b border-gray-100"}`}
+      style={[styles.row, !isLast && styles.rowDivider]}
     >
-      <View className="flex-row items-start">
-        {/* left icon bubble */}
-        <View
-          className="w-10 h-10 rounded-xl items-center justify-center mr-3"
-          style={{ backgroundColor: `${ts.tint}1A` }} // ~10% tint
-        >
-          <Ionicons name={ts.icon} size={18} color={ts.tint} />
-        </View>
+      {/* Left icon circle */}
+      <View
+        style={[
+          styles.iconCircle,
+          { backgroundColor: tc.circleBg },
+        ]}
+      >
+        <Ionicons name={tc.icon} size={18} color={tc.iconColor} />
+      </View>
 
-        {/* text area */}
-        <View className="flex-1">
-          <View className="flex-row items-center justify-between">
-            <View className="flex-row items-center">
-              <Text
-                className="text-[14px] font-semibold text-gray-900"
-                numberOfLines={1}
-              >
-                {item.title}
-              </Text>
-              {!item.read && (
-                <View className="ml-2 w-2 h-2 rounded-full bg-indigo-500" />
-              )}
-            </View>
-            {!!when && (
-              <Text
-                className="text-[11px] text-gray-500 ml-2"
-                numberOfLines={1}
-              >
-                {when}
-              </Text>
-            )}
+      {/* Text content */}
+      <View style={styles.rowContent}>
+        {/* Title row + timestamp */}
+        <View style={styles.titleRow}>
+          <View style={styles.titleInner}>
+            <Text style={styles.itemTitle} numberOfLines={1}>
+              {item.title}
+            </Text>
+            {/* Unread dot */}
+            {!item.read && <View style={styles.unreadDot} />}
           </View>
-
-          {!!item.subtitle && (
-            <Text
-              className="text-[12px] text-gray-600 mt-0.5"
-              numberOfLines={2}
-            >
-              {item.subtitle}
+          {!!when && (
+            <Text style={styles.timestamp} numberOfLines={1}>
+              {when}
             </Text>
           )}
+        </View>
 
-          <View className="mt-2 mr-auto">
-            <StatusChip action={item.action} />
-          </View>
+        {/* Subtitle */}
+        {!!item.subtitle && (
+          <Text style={styles.subtitle} numberOfLines={2}>
+            {item.subtitle}
+          </Text>
+        )}
+
+        {/* Status badge */}
+        <View style={[badgeStyles.container, { marginTop: spacing.sm }]}>
+          <Text style={badgeStyles.text}>{item.action.toUpperCase()}</Text>
         </View>
       </View>
     </TouchableOpacity>
   );
 }
 
+/* ── map raw notification to display shape ── */
 const mapNotification = (n) => {
   const dt = n?.data || {};
-  const notifType = dt?.type || "notification";
-  const title = dt?.title || "Notification";
-  const subtitle = dt?.body || "";
-  const action = deriveAction(dt?.title, dt?.body);
-  const at = n?.created_at;
-  const read = !!n?.read_at;
-
   return {
     id: n?.id || String(Math.random()),
-    notifType,
-    title,
-    subtitle,
-    action,
-    at,
-    read,
+    notifType: dt?.type || "notification",
+    title: dt?.title || "Notification",
+    subtitle: dt?.body || "",
+    action: deriveAction(dt?.title, dt?.body),
+    at: n?.created_at,
+    read: !!n?.read_at,
     original: n,
   };
 };
 
-/* =================== MAIN COMPONENT =================== */
+/* ── main component ── */
 export default function RecentActivity({ onItemPress }) {
   const { user } = useAuth();
   const dispatch = useDispatch();
@@ -185,7 +149,7 @@ export default function RecentActivity({ onItemPress }) {
   const notifications = Array.isArray(notifSlice?.items)
     ? notifSlice.items
     : [];
-  const loading = notifSlice?.loading; //  true/false/undefined
+  const loading = notifSlice?.loading;
 
   useEffect(() => {
     if (user?.id) {
@@ -193,42 +157,43 @@ export default function RecentActivity({ onItemPress }) {
     }
   }, [dispatch, user?.id]);
 
-  const data = useMemo(() => {
-    return notifications
-      .map(mapNotification)
-      .sort((a, b) => new Date(b.at) - new Date(a.at))
-      .slice(0, 4);
-  }, [notifications]);
+  const data = useMemo(
+    () =>
+      notifications
+        .map(mapNotification)
+        .sort((a, b) => new Date(b.at) - new Date(a.at))
+        .slice(0, 4),
+    [notifications]
+  );
 
-  // Showing skeleton if:
-  //  - store says loading === true, OR
-  //  - loading is still undefined (slice not hydrated yet) AND we don't have data yet
   const showSkeleton =
     (loading === true || loading === undefined) && data.length === 0;
 
   return (
-    <View className="px-0">
-      <View className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <View className="px-4 pt-4 pb-2">
-          <Text className="text-[15px] font-bold text-gray-900">
-            Recent activity
-          </Text>
-          <Text className="text-[12px] text-gray-500 mt-0.5">
-            Event updates and connection requests
-          </Text>
+    <View>
+      {/* Section header */}
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>RECENT ACTIVITY</Text>
+      </View>
+
+      {/* Card container */}
+      <ShadowCard shadowSize="md" borderRadius={radius.card} padding={0}>
+        {/* Card header */}
+        <View style={styles.cardHeader}>
+          <Text style={styles.cardHeaderTitle}>Event updates & requests</Text>
         </View>
 
+        {/* Thin rule */}
+        <View style={styles.headerDivider} />
+
+        {/* Content */}
         {showSkeleton ? (
-          <View className="px-0">
-            {[0, 1, 2, 3].map((i) => (
-              <ActivityItemSkeleton key={i} isLast={i === 3} />
-            ))}
-          </View>
+          [0, 1, 2, 3].map((i) => (
+            <ActivityItemSkeleton key={i} isLast={i === 3} />
+          ))
         ) : data.length === 0 ? (
-          <View className="px-4 py-6">
-            <Text className="text-[12px] text-gray-500">
-              No recent activity
-            </Text>
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyText}>No recent activity</Text>
           </View>
         ) : (
           data.map((item, idx) => (
@@ -240,7 +205,120 @@ export default function RecentActivity({ onItemPress }) {
             />
           ))
         )}
-      </View>
+      </ShadowCard>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  // Section header
+  sectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: spacing.md,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: -0.2,
+    color: colors.black,
+  },
+
+  // Card inner header
+  cardHeader: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.sm,
+  },
+  cardHeaderTitle: {
+    fontSize: 11,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 1.2,
+    color: colors.textSecondary,
+  },
+  headerDivider: {
+    height: borders.widthDivider,
+    backgroundColor: borders.dividerColor,
+    marginHorizontal: spacing.lg,
+  },
+
+  // Activity row
+  row: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    gap: spacing.md,
+  },
+  rowDivider: {
+    borderBottomWidth: borders.widthDivider,
+    borderBottomColor: borders.dividerColor,
+  },
+
+  // Icon circle (38×38, no border — border on the card)
+  iconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 9999,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+
+  // Text block
+  rowContent: {
+    flex: 1,
+  },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.sm,
+  },
+  titleInner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+    flex: 1,
+  },
+  itemTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: colors.black,
+    flexShrink: 1,
+  },
+  unreadDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 9999,
+    backgroundColor: colors.blue,
+    flexShrink: 0,
+  },
+  timestamp: {
+    fontSize: 11,
+    fontWeight: "500",
+    color: colors.textMeta,
+    flexShrink: 0,
+  },
+  subtitle: {
+    fontSize: 11,
+    fontWeight: "500",
+    color: colors.textMeta,
+    marginTop: 3,
+    lineHeight: 15,
+  },
+
+  // Empty state
+  emptyState: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xxl,
+  },
+  emptyText: {
+    fontSize: 14,
+    fontWeight: "400",
+    color: colors.textSecondary,
+  },
+});

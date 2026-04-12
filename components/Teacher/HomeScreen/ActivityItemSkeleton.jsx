@@ -1,28 +1,96 @@
-import { View, Text } from "react-native";
-
+import { View, StyleSheet } from "react-native";
 import Skeleton from "../../ui/Skeleton";
+import { colors, spacing, borders } from "../../../theme";
 
 export default function ActivityItemSkeleton({ isLast }) {
   return (
-    <View className={`px-4 py-3 ${isLast ? "" : "border-b border-gray-100"}`}>
-      <View className="flex-row items-start">
-        {/* left icon bubble */}
-        <Skeleton className="w-10 h-10 rounded-xl mr-3" />
+    <View style={[styles.row, !isLast && styles.rowDivider]}>
+      {/* Icon circle placeholder */}
+      <Skeleton style={styles.iconCircle} />
 
-        {/* right content */}
-        <View className="flex-1">
-          <View className="flex-row items-center justify-between">
-            <Skeleton className="h-4 w-40 rounded-md" />
-            <Skeleton className="h-3 w-10 rounded-md" />
-          </View>
-
-          <Skeleton className="h-3 w-64 rounded-md mt-2" />
-          <Skeleton className="h-3 w-44 rounded-md mt-1" />
-
-          {/* status chip */}
-          <Skeleton className="h-5 w-20 rounded-full mt-3" />
+      {/* Text content */}
+      <View style={styles.content}>
+        {/* Title + timestamp row */}
+        <View style={styles.titleRow}>
+          <Skeleton style={styles.titleBar} />
+          <Skeleton style={styles.timestampBar} />
         </View>
+
+        {/* Subtitle lines */}
+        <Skeleton style={styles.subtitleBarLong} />
+        <Skeleton style={styles.subtitleBarShort} />
+
+        {/* Badge chip placeholder */}
+        <Skeleton style={styles.badge} />
       </View>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  row: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    gap: spacing.md,
+  },
+  rowDivider: {
+    borderBottomWidth: borders.widthDivider,
+    borderBottomColor: borders.dividerColor,
+  },
+
+  // Circle skeleton — matches icon circle in ActivityItem
+  iconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 9999,
+    flexShrink: 0,
+    backgroundColor: colors.divider,
+  },
+
+  content: {
+    flex: 1,
+    gap: 6,
+  },
+
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  titleBar: {
+    height: 14,
+    width: 140,
+    borderRadius: 6,
+    backgroundColor: colors.divider,
+  },
+  timestampBar: {
+    height: 11,
+    width: 36,
+    borderRadius: 6,
+    backgroundColor: colors.divider,
+  },
+
+  subtitleBarLong: {
+    height: 11,
+    width: "85%",
+    borderRadius: 6,
+    backgroundColor: colors.divider,
+  },
+  subtitleBarShort: {
+    height: 11,
+    width: "60%",
+    borderRadius: 6,
+    backgroundColor: colors.divider,
+  },
+
+  // Badge pill placeholder
+  badge: {
+    height: 20,
+    width: 68,
+    borderRadius: 999,
+    marginTop: 2,
+    backgroundColor: colors.divider,
+  },
+});

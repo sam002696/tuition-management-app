@@ -1,83 +1,168 @@
-import { View, Text, FlatList } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
 import { Feather } from "@expo/vector-icons";
+import ShadowCard from "../../ui/ShadowCard";
+import { colors, spacing, radius, getBadgeStyles, getIconCircleStyles } from "../../../theme";
 
-/* tiny helper to build cards from API stats */
+/* ── build all 4 stat cards from API data ── */
 const buildCards = (s = {}) => [
   {
     key: "students",
-    label: "Students",
+    stat: "students",
+    label: "STUDENTS",
     value: String(s?.students_total ?? 0),
     icon: "users",
-    tint: "#3B82F6", // blue
     chip:
       (s?.new_students_today ?? 0) > 0
-        ? `+${s?.new_students_today} today`
+        ? `+${s.new_students_today} today`
         : null,
+    chipVariant: "green",
+  },
+  {
+    key: "revenue",
+    stat: "revenue",
+    label: "REVENUE",
+    value: s?.revenue_total != null ? `$${s.revenue_total}` : "$0",
+    icon: "dollar-sign",
+    chip:
+      s?.revenue_change_pct != null
+        ? `+${s.revenue_change_pct}%`
+        : null,
+    chipVariant: "green",
   },
   {
     key: "classes",
-    label: "Classes",
+    stat: "classes",
+    label: "CLASSES",
     value: String(s?.classes_total ?? 0),
     icon: "book-open",
-    tint: "#F59E0B", // amber
-    chip: `${s?.classes_today ?? 0} today`,
+    chip:
+      (s?.classes_today ?? 0) > 0 ? `${s.classes_today} today` : null,
+    chipVariant: "yellow",
+  },
+  {
+    key: "completion",
+    stat: "completion",
+    label: "COMPLETION",
+    value:
+      s?.completion_rate != null ? `${s.completion_rate}%` : "0%",
+    icon: "trending-up",
+    chip:
+      s?.completion_change != null ? `+${s.completion_change}%` : null,
+    chipVariant: "blue",
   },
 ];
 
-const Card = ({ item }) => {
-  return (
-    <View className="flex-1 rounded-2xl bg-white border border-gray-100 shadow-sm p-4 overflow-hidden">
-      {/* soft backdrop blobs */}
-      <View
-        className="absolute -top-6 -right-6 w-24 h-24 rounded-full opacity-10"
-        style={{ backgroundColor: item.tint }}
-      />
-      <View
-        className="absolute -bottom-8 -left-8 w-28 h-28 rounded-full opacity-10"
-        style={{ backgroundColor: item.tint }}
-      />
+/* ── single stat card ── */
+const StatCard = ({ item }) => {
+  const iconStyles = getIconCircleStyles(item.stat);
+  const chipStyles = item.chip ? getBadgeStyles(item.chipVariant) : null;
 
-      <View className="flex-row items-center justify-between">
-        <View
-          className="p-2 rounded-xl"
-          style={{ backgroundColor: item.tint + "22" }}
-        >
-          <Feather name={item.icon} size={16} color={item.tint} />
+  return (
+    <ShadowCard
+      shadowSize="md"
+      borderRadius={radius.card}
+      padding={spacing.lg}
+      style={styles.cardWrapper}
+      cardStyle={styles.cardSurface}
+    >
+      {/* Top row: icon circle  |  delta chip */}
+      <View style={styles.topRow}>
+        <View style={[styles.iconCircle, iconStyles.container]}>
+          <Feather name={item.icon} size={18} color={iconStyles.iconColor} />
         </View>
 
-        {item.chip ? (
-          <Text
-            className="px-2 py-1 rounded-full text-[11px] font-semibold"
-            style={{ color: item.tint, backgroundColor: item.tint + "14" }}
-          >
-            {item.chip}
-          </Text>
-        ) : (
-          <View />
+        {chipStyles && (
+          <View style={chipStyles.container}>
+            <Text style={chipStyles.text}>{item.chip}</Text>
+          </View>
         )}
       </View>
 
-      <Text className="mt-3 text-2xl font-bold text-gray-900">
-        {item.value}
-      </Text>
-      <Text className="text-xs text-gray-600 mt-0.5">{item.label}</Text>
+      {/* Stat number */}
+      <Text style={styles.statNumber}>{item.value}</Text>
+
+      {/* Stat label */}
+      <Text style={styles.statLabel}>{item.label}</Text>
+    </ShadowCard>
+  );
+};
+
+/* ── 2×2 grid ── */
+const StatsGrid = ({ stats }) => {
+  const cards = buildCards(stats);
+  // Split into two rows of 2
+  const row1 = cards.slice(0, 2);
+  const row2 = cards.slice(2, 4);
+
+  return (
+    <View style={styles.grid}>
+      <View style={styles.row}>
+        {row1.map((item) => (
+          <StatCard key={item.key} item={item} />
+        ))}
+      </View>
+      <View style={styles.row}>
+        {row2.map((item) => (
+          <StatCard key={item.key} item={item} />
+        ))}
+      </View>
     </View>
   );
 };
 
-const StatsGrid = ({ stats }) => {
-  const cards = buildCards(stats);
-  return (
-    <FlatList
-      data={cards}
-      keyExtractor={(it) => it.key}
-      numColumns={2}
-      scrollEnabled={false}
-      columnWrapperStyle={{ gap: 12 }}
-      contentContainerStyle={{ gap: 12 }}
-      renderItem={({ item }) => <Card item={item} />}
-    />
-  );
-};
+const styles = StyleSheet.create({
+  grid: {
+    gap: spacing.md,
+  },
+  row: {
+    flexDirection: "row",
+    gap: spacing.md,
+  },
+
+  // ShadowCard outer wrapper — flex:1 so both cards in a row share width equally
+  cardWrapper: {
+    flex: 1,
+  },
+
+  // Clip any overflow inside the card surface (safety)
+  cardSurface: {
+    minHeight: 110,
+  },
+
+  // Top row: icon on left, chip on right
+  topRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+  },
+
+  // Icon circle — 38×38, no border (border lives on the card)
+  iconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 9999,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  // Large stat number
+  statNumber: {
+    fontSize: 28,
+    fontWeight: "800",
+    letterSpacing: -0.5,
+    color: colors.black,
+    marginTop: spacing.sm,
+  },
+
+  // Label below number
+  statLabel: {
+    fontSize: 10,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 1.2,
+    color: colors.textMuted,
+    marginTop: 2,
+  },
+});
 
 export default StatsGrid;

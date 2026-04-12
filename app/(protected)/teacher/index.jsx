@@ -1,23 +1,21 @@
-import { useEffect } from "react";
-import { SafeAreaView, View, ScrollView } from "react-native";
+import { useCallback } from "react";
+import { SafeAreaView, ScrollView, View } from "react-native";
+import { useDispatch, useSelector } from "react-redux";
+import { useFocusEffect } from "expo-router";
+
+import GridBackground from "../../../components/ui/GridBackground";
 import Header from "../../../components/Teacher/HomeScreen/Header";
 import QuickSummary from "../../../components/Teacher/HomeScreen/QuickSummary";
 import StatsGrid from "../../../components/Teacher/HomeScreen/StatsGrid";
 import TodaysSchedule from "../../../components/Teacher/HomeScreen/TodaysSchedule";
 import RecentActivity from "../../../components/Teacher/HomeScreen/RecentActivity";
-import { useDispatch, useSelector } from "react-redux";
-
-import { useCallback } from "react";
-import { useFocusEffect } from "expo-router";
+import { colors, spacing } from "../../../theme";
 
 const HomeScreen = () => {
   const dispatch = useDispatch();
-
   const { overview, stats, schedule_today } = useSelector(
     (state) => state.teacherHomeData
   );
-
-  // dispatching fetchTeacherHomeData action to load data when component mounts
 
   useFocusEffect(
     useCallback(() => {
@@ -26,30 +24,39 @@ const HomeScreen = () => {
   );
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
-      <ScrollView
-        contentContainerStyle={{ paddingBottom: 24 }}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Decorative hero cap */}
-        <View className="px-4 pt-6 pb-8 rounded-b-3xl bg-indigo-600">
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.offWhite }}>
+      <GridBackground>
+        <ScrollView
+          contentContainerStyle={{
+            paddingHorizontal: spacing.screenPadding,
+            paddingBottom: 40,
+          }}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* App bar + greeting */}
           <Header />
-          <QuickSummary overview={overview} />
-        </View>
 
-        {/* Lifted content wrapper so cards feel layered */}
-        <View className="-mt-6 px-4">
-          <StatsGrid stats={stats} />
+          {/* Hero overview card */}
+          <View style={{ marginTop: spacing.xxl }}>
+            <QuickSummary overview={overview} />
+          </View>
 
-          <View className="mt-6">
+          {/* 2×2 stat cards */}
+          <View style={{ marginTop: spacing.xxl }}>
+            <StatsGrid stats={stats} />
+          </View>
+
+          {/* Today's schedule */}
+          <View style={{ marginTop: spacing.xxl }}>
             <TodaysSchedule scheduleData={schedule_today} />
           </View>
 
-          <View className="mt-6">
+          {/* Recent activity */}
+          <View style={{ marginTop: spacing.xxl }}>
             <RecentActivity />
           </View>
-        </View>
-      </ScrollView>
+        </ScrollView>
+      </GridBackground>
     </SafeAreaView>
   );
 };

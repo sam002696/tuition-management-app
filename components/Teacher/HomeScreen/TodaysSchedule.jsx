@@ -1,7 +1,9 @@
-import { View, Text, TouchableOpacity } from "react-native";
-import { Feather, Ionicons } from "@expo/vector-icons";
+import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { Feather } from "@expo/vector-icons";
+import ShadowCard from "../../ui/ShadowCard";
+import { colors, spacing, radius, getBadgeStyles } from "../../../theme";
 
-/* ---------- helpers ---------- */
+/* ── duration formatter ── */
 const fmtDuration = (m) => {
   if (!m || typeof m !== "number") return "—";
   if (m % 60 === 0) return `${m / 60}h`;
@@ -10,124 +12,188 @@ const fmtDuration = (m) => {
   return h ? `${h}h ${r}m` : `${r}m`;
 };
 
-const STATUS_UI = {
-  live: { bg: "#FCE7F3", color: "#9D174D", label: "Live", accent: "#EF4444" },
+/* ── status → design-system badge variant + accent bar color ── */
+const STATUS_CONFIG = {
+  live: {
+    badgeVariant: "red",
+    label: "LIVE",
+    accentColor: colors.red,
+  },
   starting_soon: {
-    bg: "#FEE2E2",
-    color: "#991B1B",
-    label: "Starting soon",
-    accent: "#8B5CF6",
+    badgeVariant: "red",
+    label: "STARTING SOON",
+    accentColor: colors.blue,
   },
   upcoming: {
-    bg: "#E0F2FE",
-    color: "#075985",
-    label: "Upcoming",
-    accent: "#06B6D4",
+    badgeVariant: "blue",
+    label: "UPCOMING",
+    accentColor: colors.amber,
   },
   completed: {
-    bg: "#DCFCE7",
-    color: "#065F46",
-    label: "Completed",
-    accent: "#10B981",
+    badgeVariant: "green",
+    label: "COMPLETED",
+    accentColor: colors.green,
   },
   overdue: {
-    bg: "#FEF3C7",
-    color: "#92400E",
-    label: "Missed",
-    accent: "#F59E0B",
+    badgeVariant: "pink",
+    label: "MISSED",
+    accentColor: colors.amber,
   },
 };
-const getUiForStatus = (status) =>
-  STATUS_UI[status] || {
-    bg: "#E5E7EB",
-    color: "#374151",
-    label: "Scheduled",
-    accent: "#6366F1",
+
+const getStatusConfig = (status) =>
+  STATUS_CONFIG[status] ?? {
+    badgeVariant: "blue",
+    label: "SCHEDULED",
+    accentColor: colors.blue,
   };
 
-/* ---------- subcomponents ---------- */
-const StatusPill = ({ status }) => {
-  const { bg, color, label } = getUiForStatus(status);
-  return (
-    <View className="px-2 py-1 rounded-full" style={{ backgroundColor: bg }}>
-      <Text className="text-[11px] font-semibold" style={{ color }}>
-        {label}
-      </Text>
-    </View>
-  );
-};
+/* ── section header ── */
+const SectionHeader = () => (
+  <View style={styles.sectionHeader}>
+    <Text style={styles.sectionTitle}>TODAY'S SCHEDULE</Text>
+    <TouchableOpacity>
+      <Text style={styles.viewAll}>View all</Text>
+    </TouchableOpacity>
+  </View>
+);
 
+/* ── single event card ── */
 const EventCard = ({ item }) => {
-  const ui = getUiForStatus(item.status);
+  const config = getStatusConfig(item.status);
+  const badgeStyles = getBadgeStyles(config.badgeVariant);
   const duration = fmtDuration(item.duration_min);
-  const subtitle = item?.student?.name
-    ? `${item.student.name} • ${duration}`
-    : duration;
+  const meta = [item.starts_at_human, duration, item?.student?.name]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
-    <View className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
-      <View className="flex-row">
-        {/* accent bar */}
+    <ShadowCard
+      shadowSize="md"
+      borderRadius={radius.cardSm}
+      padding={0}
+      cardStyle={styles.eventCardSurface}
+    >
+      <View style={styles.eventRow}>
+        {/* Accent bar */}
         <View
-          className="w-1.5 rounded-full mr-3"
-          style={{ backgroundColor: ui.accent }}
+          style={[styles.accentBar, { backgroundColor: config.accentColor }]}
         />
 
-        <View className="flex-1">
-          <View className="flex-row justify-between items-start">
-            <View>
-              <Text className="font-semibold text-gray-900">{item.title}</Text>
-              <Text className="text-xs text-gray-600 mt-0.5">{subtitle}</Text>
-            </View>
-            <StatusPill status={item.status} />
-          </View>
-
-          <View className="mt-3 flex-row items-center">
-            <Feather name="clock" size={12} color="#4B5563" />
-            <Text className="text-sm font-medium text-gray-700 ml-1">
-              {item.starts_at_human}
-            </Text>
+        {/* Content */}
+        <View style={styles.eventContent}>
+          <Text style={styles.eventTitle} numberOfLines={1}>
+            {item.title}
+          </Text>
+          <View style={styles.metaRow}>
+            <Feather name="clock" size={11} color={colors.textMeta} />
+            <Text style={styles.metaText}>{meta}</Text>
           </View>
         </View>
+
+        {/* Status badge */}
+        <View style={badgeStyles.container}>
+          <Text style={badgeStyles.text}>{config.label}</Text>
+        </View>
       </View>
-    </View>
+    </ShadowCard>
   );
 };
 
-/* ---------- main ---------- */
-const TodaysSchedule = ({ scheduleData = [] }) => {
-  return (
-    <View>
-      <View className="flex-row items-center justify-between mb-3">
-        <View className="flex-row items-center">
-          <View className="w-8 h-8 rounded-xl items-center justify-center bg-indigo-50 mr-2">
-            <Ionicons name="calendar-outline" size={16} color="#4F46E5" />
-          </View>
-          <Text className="text-gray-900 font-semibold text-base">
-            Today’s Schedule
-          </Text>
-        </View>
+/* ── empty state ── */
+const EmptyCard = () => (
+  <ShadowCard shadowSize="md" borderRadius={radius.cardSm}>
+    <Text style={styles.emptyText}>No classes scheduled for today.</Text>
+  </ShadowCard>
+);
 
-        <TouchableOpacity className="px-3 py-1.5 rounded-xl border border-gray-200">
-          <Text className="text-xs text-gray-700">View all</Text>
-        </TouchableOpacity>
-      </View>
+/* ── main component ── */
+const TodaysSchedule = ({ scheduleData = [] }) => (
+  <View>
+    <SectionHeader />
 
+    <View style={styles.list}>
       {scheduleData.length === 0 ? (
-        <View className="bg-white p-4 rounded-2xl border border-gray-100">
-          <Text className="text-gray-600 text-sm">
-            No classes scheduled for today.
-          </Text>
-        </View>
+        <EmptyCard />
       ) : (
-        <View className="gap-3">
-          {scheduleData.map((ev) => (
-            <EventCard key={ev.id} item={ev} />
-          ))}
-        </View>
+        scheduleData.map((ev) => <EventCard key={ev.id} item={ev} />)
       )}
     </View>
-  );
-};
+  </View>
+);
+
+const styles = StyleSheet.create({
+  // Section header row
+  sectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: spacing.md,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: -0.2,
+    color: colors.black,
+  },
+  viewAll: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: colors.black,
+    textDecorationLine: "underline",
+  },
+
+  // Card list gap
+  list: {
+    gap: spacing.md,
+  },
+
+  // Inner layout of each event card
+  eventCardSurface: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 14,
+    paddingRight: spacing.lg,
+    gap: spacing.md,
+  },
+
+  // Left accent bar: 4px wide, 36px tall
+  accentBar: {
+    width: 4,
+    height: 36,
+    borderRadius: 2,
+    marginLeft: spacing.lg,
+    flexShrink: 0,
+  },
+
+  // Event text block
+  eventContent: {
+    flex: 1,
+    gap: 4,
+  },
+  eventTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: colors.black,
+  },
+  metaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  metaText: {
+    fontSize: 11,
+    fontWeight: "500",
+    color: colors.textMeta,
+  },
+
+  // Empty state
+  emptyText: {
+    fontSize: 14,
+    fontWeight: "400",
+    color: colors.textSecondary,
+  },
+});
 
 export default TodaysSchedule;
