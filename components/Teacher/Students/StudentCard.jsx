@@ -1,189 +1,344 @@
-import { View, Text, TouchableOpacity } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import InitialsAvatar from "../../ui/InitialsAvatar";
+import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { Feather, Ionicons } from "@expo/vector-icons";
+import { initialsFrom, stringToColor } from "../../ui/InitialsAvatar";
+import ShadowCard from "../../ui/ShadowCard";
+import { colors, spacing, radius, borders, getBadgeStyles } from "../../../theme";
 
-const StatusPill = ({ statusKey }) => {
-  const map = {
-    active: {
-      bg: "bg-emerald-100",
-      txt: "text-emerald-800",
-      ic: "checkmark-circle",
-      color: "#047857",
-    },
-    pending: {
-      bg: "bg-amber-100",
-      txt: "text-amber-800",
-      ic: "time",
-      color: "#92400E",
-    },
-    archived: {
-      bg: "bg-gray-100",
-      txt: "text-gray-800",
-      ic: "archive",
-      color: "#111827",
-    },
-  }[statusKey] || {
-    bg: "bg-gray-100",
-    txt: "text-gray-800",
-    ic: "help",
-    color: "#111827",
-  };
-
-  return (
-    <View
-      className={`px-2.5 py-1.5 rounded-full flex-row items-center ${map.bg}`}
-    >
-      <Ionicons name={map.ic} size={14} color={map.color} />
-      <Text className={`ml-1 text-xs font-semibold ${map.txt}`}>
-        {statusKey.charAt(0).toUpperCase() + statusKey.slice(1)}
-      </Text>
-    </View>
-  );
+/* ── Status → design-system badge variant ─────────────────────────────────── */
+const STATUS_BADGE = {
+  active:   "green",
+  pending:  "yellow",
+  archived: "blue",
 };
 
-const SubjectChip = ({ label }) => (
-  <View className="bg-indigo-50 px-3 py-1 rounded-full mr-2 mb-2 border border-indigo-100">
-    <Text className="text-indigo-700 text-[11px] font-semibold">{label}</Text>
-  </View>
-);
+/* ── Avatar (design system section 8.8) ──────────────────────────────────── */
+function Avatar({ name }) {
+  const initials = initialsFrom(name || "ST");
+  const bgColor  = stringToColor(name || "ST");
 
-const InfoCell = ({ icon, color, label, value }) => (
-  <View className="flex-row items-start gap-2 flex-1">
-    <View
-      className="w-8 h-8 rounded-xl items-center justify-center"
-      style={{ backgroundColor: `${color}22` }}
-    >
-      <Ionicons name={icon} size={16} color={color} />
+  return (
+    <View style={[styles.avatar, { backgroundColor: bgColor }]}>
+      <Text style={styles.avatarText}>{initials}</Text>
     </View>
-    <View className="flex-1">
-      <Text className="text-[11px] text-gray-500">{label}</Text>
-      <Text
-        className="text-[13px] font-semibold text-gray-900 mt-0.5"
-        numberOfLines={1}
-      >
-        {value ?? "—"}
-      </Text>
-    </View>
-  </View>
-);
+  );
+}
 
-/* ------------ Card ------------ */
+/* ── Info cell — icon circle + label + value ──────────────────────────────── */
+const INFO_CIRCLE = {
+  id:    { bg: "#E8F4FF", icon: "#1A7AAA" },
+  phone: { bg: "#E8F9F0", icon: "#1A7A45" },
+  level: { bg: "#FFF8E5", icon: "#A06000" },
+};
+
+function InfoCell({ type = "id", iconName, label, value }) {
+  const c = INFO_CIRCLE[type];
+  return (
+    <View style={styles.infoCell}>
+      <View style={[styles.infoIconCircle, { backgroundColor: c.bg }]}>
+        <Ionicons name={iconName} size={15} color={c.icon} />
+      </View>
+      <View style={styles.infoCellText}>
+        <Text style={styles.infoCellLabel}>{label}</Text>
+        <Text style={styles.infoCellValue} numberOfLines={1}>
+          {value ?? "—"}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+/* ── Subject chip — blue badge variant ───────────────────────────────────── */
+function SubjectChip({ label }) {
+  const badge = getBadgeStyles("blue");
+  return (
+    <View style={[badge.container, styles.subjectChip]}>
+      <Text style={badge.text}>{label}</Text>
+    </View>
+  );
+}
+
+/* ── Main card ───────────────────────────────────────────────────────────── */
 export default function StudentCard({ item, onView, onEdit, onDelete }) {
-  const s = item?.student || {};
+  const s  = item?.student        || {};
   const td = item?.tuition_details || {};
 
   const statusKey =
-    item?.status === "pending"
-      ? "pending"
-      : item?.is_active
-        ? "active"
-        : "archived";
+    item?.status === "pending" ? "pending"
+    : item?.is_active           ? "active"
+    :                             "archived";
+
+  const statusBadge = getBadgeStyles(STATUS_BADGE[statusKey] ?? "blue");
 
   return (
-    <View className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
-      {/* Top row */}
-      <View className="flex-row justify-between items-start">
-        <View className="flex-row items-center">
-          <View className="w-12 h-12 rounded-full items-center justify-center mr-3">
-            <InitialsAvatar
-              name={s.name || s.custom_id || "ST"}
-              size={40}
-              rounded
-            />
-          </View>
-          <View>
-            <Text className="text-[16px] font-semibold text-gray-900">
+    <ShadowCard shadowSize="md" borderRadius={radius.card} padding={spacing.lg}>
+      {/* ── Top row: avatar + name/email | status badge ── */}
+      <View style={styles.topRow}>
+        <View style={styles.nameRow}>
+          <Avatar name={s.name || s.custom_id} />
+          <View style={styles.nameBlock}>
+            <Text style={styles.studentName} numberOfLines={1}>
               {s.name || "—"}
             </Text>
-            <Text className="text-[12px] text-gray-500">{s.email || "—"}</Text>
+            <Text style={styles.studentEmail} numberOfLines={1}>
+              {s.email || "—"}
+            </Text>
           </View>
         </View>
-        <StatusPill statusKey={statusKey} />
+
+        <View style={statusBadge.container}>
+          <Text style={statusBadge.text}>
+            {statusKey.toUpperCase()}
+          </Text>
+        </View>
       </View>
 
-      {/* Details */}
-      <View className="mt-3 gap-3">
-        <View className="flex-row gap-3">
+      {/* ── Divider ── */}
+      <View style={styles.divider} />
+
+      {/* ── Info grid: 2 columns × 2 rows ── */}
+      <View style={styles.infoGrid}>
+        <View style={styles.infoRow}>
           <InfoCell
-            icon="card-outline"
-            color="#4F46E5"
+            type="id"
+            iconName="card-outline"
             label="Student ID"
             value={s.custom_id}
           />
           <InfoCell
-            icon="call-outline"
-            color="#0EA5E9"
+            type="phone"
+            iconName="call-outline"
             label="Phone"
             value={s.phone}
           />
         </View>
-        <View className="flex-row gap-3">
+        <View style={styles.infoRow}>
           <InfoCell
-            icon="school-outline"
-            color="#10B981"
+            type="level"
+            iconName="school-outline"
             label="Class Level"
             value={td.class_level}
           />
-          <View className="flex-1" />
+          {/* Spacer for alignment */}
+          <View style={styles.infoCell} />
         </View>
       </View>
 
-      {/* Subjects */}
-      {Array.isArray(td.subject_list) && td.subject_list.length > 0 ? (
-        <View className="mt-3">
-          <Text className="text-[11px] text-gray-500 mb-1">Subjects</Text>
-          <View className="flex-row flex-wrap">
+      {/* ── Subjects ── */}
+      {Array.isArray(td.subject_list) && td.subject_list.length > 0 && (
+        <View style={styles.subjectsBlock}>
+          <Text style={styles.subjectsLabel}>SUBJECTS</Text>
+          <View style={styles.subjectsRow}>
             {td.subject_list.map((sub) => (
               <SubjectChip key={String(sub)} label={String(sub)} />
             ))}
           </View>
         </View>
-      ) : null}
+      )}
 
-      {/* Actions */}
-      <View className="mt-4 flex-row gap-2">
+      {/* ── Action buttons ── */}
+      <View style={styles.actionsRow}>
+        {/* View — blue filled */}
         <TouchableOpacity
           onPress={() => onView(item)}
-          className="flex-1 h-10 rounded-xl items-center justify-center flex-row gap-1"
-          style={{ backgroundColor: "#E0F2FE" }}
+          activeOpacity={0.8}
+          style={[styles.actionBtn, styles.actionBtnBlue]}
         >
-          <Ionicons name="eye-outline" size={16} color="#0369A1" />
-          <Text
-            className="text-[12px] font-semibold"
-            style={{ color: "#0369A1" }}
-          >
-            View
+          <Feather name="eye" size={14} color={colors.white} />
+          <Text style={[styles.actionBtnText, styles.actionBtnTextBlue]}>
+            VIEW
           </Text>
         </TouchableOpacity>
 
+        {/* Edit — outlined */}
         <TouchableOpacity
           onPress={() => onEdit(item)}
-          className="flex-1 h-10 rounded-xl items-center justify-center flex-row gap-1"
-          style={{ backgroundColor: "#EDE9FE" }}
+          activeOpacity={0.8}
+          style={[styles.actionBtn, styles.actionBtnOutlined]}
         >
-          <Ionicons name="create-outline" size={16} color="#4338CA" />
-          <Text
-            className="text-[12px] font-semibold"
-            style={{ color: "#4338CA" }}
-          >
-            Edit
+          <Feather name="edit-2" size={14} color={colors.black} />
+          <Text style={[styles.actionBtnText, styles.actionBtnTextOutlined]}>
+            EDIT
           </Text>
         </TouchableOpacity>
 
+        {/* Delete — red outlined */}
         <TouchableOpacity
           onPress={() => onDelete(item)}
-          className="flex-1 h-10 rounded-xl items-center justify-center flex-row gap-1"
-          style={{ backgroundColor: "#FFE4E6" }}
+          activeOpacity={0.8}
+          style={[styles.actionBtn, styles.actionBtnRed]}
         >
-          <Ionicons name="trash-outline" size={16} color="#BE123C" />
-          <Text
-            className="text-[12px] font-semibold"
-            style={{ color: "#BE123C" }}
-          >
-            Delete
+          <Feather name="trash-2" size={14} color={colors.red} />
+          <Text style={[styles.actionBtnText, styles.actionBtnTextRed]}>
+            DELETE
           </Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </ShadowCard>
   );
 }
+
+/* ── Styles ──────────────────────────────────────────────────────────────── */
+const styles = StyleSheet.create({
+  // ── Avatar — design system 8.8 ─────────────────────────────────────────
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.circle,
+    borderWidth: borders.width,
+    borderColor: borders.color,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  avatarText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: colors.white,
+    letterSpacing: 0.5,
+  },
+
+  // ── Top row ─────────────────────────────────────────────────────────────
+  topRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.sm,
+  },
+  nameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    flex: 1,
+  },
+  nameBlock: {
+    flex: 1,
+  },
+  studentName: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: colors.black,
+  },
+  studentEmail: {
+    fontSize: 11,
+    fontWeight: "500",
+    color: colors.textMeta,
+    marginTop: 2,
+  },
+
+  // ── Divider ─────────────────────────────────────────────────────────────
+  divider: {
+    height: borders.widthDivider,
+    backgroundColor: borders.dividerColor,
+    marginVertical: spacing.md,
+  },
+
+  // ── Info grid ───────────────────────────────────────────────────────────
+  infoGrid: {
+    gap: spacing.md,
+  },
+  infoRow: {
+    flexDirection: "row",
+    gap: spacing.md,
+  },
+  infoCell: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: spacing.sm,
+  },
+  infoIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: radius.circle,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  infoCellText: {
+    flex: 1,
+  },
+  infoCellLabel: {
+    fontSize: 10,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 1,
+    color: colors.textMeta,
+  },
+  infoCellValue: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: colors.black,
+    marginTop: 2,
+  },
+
+  // ── Subjects ─────────────────────────────────────────────────────────────
+  subjectsBlock: {
+    marginTop: spacing.md,
+  },
+  subjectsLabel: {
+    fontSize: 10,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 1.2,
+    color: colors.textMeta,
+    marginBottom: spacing.sm,
+  },
+  subjectsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+  },
+  subjectChip: {
+    marginBottom: 0, // override badge alignSelf
+  },
+
+  // ── Action buttons ────────────────────────────────────────────────────────
+  actionsRow: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    marginTop: spacing.lg,
+  },
+  actionBtn: {
+    flex: 1,
+    height: 38,
+    borderRadius: radius.button,
+    borderWidth: borders.width,
+    borderColor: borders.color,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.xs,
+  },
+  actionBtnText: {
+    fontSize: 11,
+    fontWeight: "700",
+    textTransform: "uppercase",
+  },
+
+  // View — sky blue filled
+  actionBtnBlue: {
+    backgroundColor: colors.blue,
+    borderColor: borders.color,
+  },
+  actionBtnTextBlue: {
+    color: colors.white,
+  },
+
+  // Edit — white outlined
+  actionBtnOutlined: {
+    backgroundColor: colors.white,
+    borderColor: borders.color,
+  },
+  actionBtnTextOutlined: {
+    color: colors.black,
+  },
+
+  // Delete — white with red border + text
+  actionBtnRed: {
+    backgroundColor: colors.white,
+    borderColor: colors.red,
+  },
+  actionBtnTextRed: {
+    color: colors.red,
+  },
+});
