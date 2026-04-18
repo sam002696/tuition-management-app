@@ -1,482 +1,787 @@
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import {
   View,
   Text,
   ScrollView,
   Pressable,
+  TouchableOpacity,
   Linking,
   Alert,
   ActivityIndicator,
+  StyleSheet,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
-import { useLocalSearchParams } from "expo-router";
+import { Ionicons, Feather } from "@expo/vector-icons";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useDispatch, useSelector } from "react-redux";
+import GridBackground from "../../components/ui/GridBackground";
+import ShadowCard from "../../components/ui/ShadowCard";
+import { initialsFrom, stringToColor } from "../../components/ui/InitialsAvatar";
+import { colors, spacing, radius, borders, getBadgeStyles } from "../../theme";
 
-/* ---------- helpers ---------- */
-const C = {
-  indigo: "#4F46E5",
-  blue: "#2563EB",
-  sky: "#0EA5E9",
-  emerald: "#10B981",
-  amber: "#F59E0B",
-  rose: "#E11D48",
-  slate: "#6B7280",
-  violet: "#8B5CF6",
-};
-const labelType = (t) =>
-  t === "monthly_based" ? "Monthly Based" : "Course Based";
-const money = (n) =>
-  `৳ ${Number(n || 0)
-    .toString()
-    .replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
-const fmtArr = (a) => (Array.isArray(a) && a.length ? a.join(", ") : "—");
+// ─────────────────────────────────────────────────────────────────────────────
+// Formatters
+// ─────────────────────────────────────────────────────────────────────────────
+const labelType  = (t) => (t === "monthly_based" ? "MONTHLY" : "COURSE");
+const money      = (n) =>
+  `৳ ${Number(n || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
 const fullAddress = (t = {}) =>
-  [t.address_line, t.thana, t.district].filter(Boolean).join(", ");
+  [t.address_line, t.thana, t.district].filter(Boolean).join(", ") || "—";
 
-const initialsFrom = (name = "") =>
-  (name.match(/\b\w/g) || []).slice(0, 2).join("").toUpperCase() || "ST";
-const stringToColor = (str = "") => {
-  const colors = [
-    "#8B5CF6",
-    "#F59E0B",
-    "#10B981",
-    "#3B82F6",
-    "#EF4444",
-    "#6366F1",
-    "#14B8A6",
-    "#F43F5E",
-    "#84CC16",
-    "#D946EF",
-  ];
-  let hash = 0;
-  for (let i = 0; i < str.length; i++)
-    hash = str.charCodeAt(i) + ((hash << 5) - hash);
-  return colors[Math.abs(hash) % colors.length];
+// ─────────────────────────────────────────────────────────────────────────────
+// Icon circle palette (mirrors theme iconCircle)
+// ─────────────────────────────────────────────────────────────────────────────
+const IC = {
+  blue:   { bg: "#E8F4FF", icon: "#1A7AAA" },
+  green:  { bg: "#E8F9F0", icon: "#1A7A45" },
+  amber:  { bg: "#FFF8E5", icon: "#A06000" },
+  coral:  { bg: "#FFEEE8", icon: "#CC3333" },
 };
 
-/* ---------- small UI atoms ---------- */
-const StatusPill = ({ status }) => {
-  const map = {
-    active: { bg: "#DCFCE7", color: "#065F46", icon: "checkmark-circle" },
-    pending: { bg: "#FEF3C7", color: "#92400E", icon: "time" },
-    archived: { bg: "#F3F4F6", color: "#111827", icon: "archive" },
-  }[status] || { bg: "#F3F4F6", color: "#6B7280", icon: "help-circle" };
+// ─────────────────────────────────────────────────────────────────────────────
+// Atoms
+// ─────────────────────────────────────────────────────────────────────────────
 
+/** 52×52 avatar circle — design system section 8.8 */
+function Avatar({ name }) {
+  const initials = initialsFrom(name || "ST");
+  const bg       = stringToColor(name || "ST");
   return (
-    <View
-      className="flex-row items-center px-2.5 py-1.5 rounded-full"
-      style={{ backgroundColor: map.bg }}
-    >
-      <Ionicons name={map.icon} size={14} color={map.color} />
-      <Text className="ml-1 text-xs font-semibold" style={{ color: map.color }}>
-        {status?.[0]?.toUpperCase() + status?.slice(1)}
-      </Text>
+    <View style={[styles.avatar, { backgroundColor: bg }]}>
+      <Text style={styles.avatarText}>{initials}</Text>
     </View>
   );
-};
+}
 
-const SectionTitle = ({ icon, color = C.indigo, title, right }) => (
-  <View className="flex-row items-center justify-between mb-2">
-    <View className="flex-row items-center gap-2">
-      <View
-        className="w-8 h-8 rounded-xl items-center justify-center"
-        style={{ backgroundColor: `${color}15` }}
-      >
-        <Ionicons name={icon} size={18} color={color} />
-      </View>
-      <Text className="text-sm font-semibold text-gray-900">{title}</Text>
-    </View>
+/** Horizontal divider */
+const Divider = () => <View style={styles.divider} />;
+
+/** Uppercase section label inside a card */
+const SectionLabel = ({ title, right }) => (
+  <View style={styles.sectionLabelRow}>
+    <Text style={styles.sectionLabelText}>{title}</Text>
     {right}
   </View>
 );
 
-const InfoRow = ({ icon, color = C.slate, label, value, onPress }) => (
-  <Pressable
-    onPress={onPress}
-    disabled={!onPress}
-    className="flex-row items-start gap-3 py-2"
-    style={({ pressed }) => ({ opacity: onPress && pressed ? 0.8 : 1 })}
-  >
-    <Ionicons name={icon} size={16} color={color} style={{ marginTop: 2 }} />
-    <View className="flex-1">
-      <Text className="text-[11px] text-gray-500">{label}</Text>
-      <Text
-        className="text-[13px] font-semibold text-gray-900 mt-0.5"
-        numberOfLines={2}
-      >
-        {value || "—"}
-      </Text>
+/**
+ * Info row — icon circle + label + value.
+ * Optionally pressable (e.g. tap to call/mail).
+ */
+const InfoRow = ({ circleKey = "blue", iconName, label, value, onPress }) => {
+  const c = IC[circleKey];
+  const content = (
+    <View style={styles.infoRow}>
+      <View style={[styles.infoCircle, { backgroundColor: c.bg }]}>
+        <Ionicons name={iconName} size={15} color={c.icon} />
+      </View>
+      <View style={styles.infoRowText}>
+        <Text style={styles.infoRowLabel}>{label}</Text>
+        <Text style={styles.infoRowValue} numberOfLines={2}>
+          {value || "—"}
+        </Text>
+      </View>
+      {onPress && (
+        <Feather name="chevron-right" size={14} color={colors.textMeta} />
+      )}
     </View>
-  </Pressable>
-);
+  );
 
-const Chip = ({ label, tone = "indigo" }) => {
-  const toneMap = {
-    indigo: { bg: "#EEF2FF", color: "#4338CA", border: "#E0E7FF" },
-    sky: { bg: "#F0F9FF", color: "#0369A1", border: "#E0F2FE" },
-    emerald: { bg: "#ECFDF5", color: "#047857", border: "#D1FAE5" },
-  }[tone];
+  if (!onPress) return content;
   return (
-    <View
-      className="px-3 py-1 rounded-full mr-2 mb-2 border"
-      style={{ backgroundColor: toneMap.bg, borderColor: toneMap.border }}
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => pressed && { opacity: 0.7 }}
     >
-      <Text
-        className="text-[11px] font-semibold"
-        style={{ color: toneMap.color }}
-      >
-        {label}
-      </Text>
+      {content}
+    </Pressable>
+  );
+};
+
+/** Mini stat block used inside the tuition card */
+const MiniStat = ({ circleKey = "blue", iconName, label, value }) => {
+  const c = IC[circleKey];
+  return (
+    <View style={styles.miniStat}>
+      <View style={[styles.miniStatCircle, { backgroundColor: c.bg }]}>
+        <Ionicons name={iconName} size={14} color={c.icon} />
+      </View>
+      <Text style={styles.miniStatValue}>{value || "—"}</Text>
+      <Text style={styles.miniStatLabel}>{label}</Text>
     </View>
   );
 };
 
-const Stat = ({ label, value, tone = "indigo" }) => {
-  const toneMap = {
-    indigo: { bg: "#EEF2FF", color: "#3730A3" },
-    sky: { bg: "#F0F9FF", color: "#075985" },
-    amber: { bg: "#FFFBEB", color: "#92400E" },
-    emerald: { bg: "#ECFDF5", color: "#065F46" },
-  }[tone];
+/** Tag chip — wraps getBadgeStyles */
+const TagChip = ({ label, variant = "blue" }) => {
+  const badge = getBadgeStyles(variant);
   return (
-    <View
-      className="flex-1 p-3 rounded-xl"
-      style={{ backgroundColor: toneMap.bg }}
-    >
-      <Text className="text-[11px]" style={{ color: `${toneMap.color}CC` }}>
-        {label}
-      </Text>
-      <Text
-        className="text-base font-semibold mt-0.5"
-        style={{ color: toneMap.color }}
-      >
-        {value}
-      </Text>
+    <View style={badge.container}>
+      <Text style={badge.text}>{label}</Text>
     </View>
   );
 };
 
-/* ---------- main component ---------- */
+// ─────────────────────────────────────────────────────────────────────────────
+// Main component
+// ─────────────────────────────────────────────────────────────────────────────
 export default function StudentDetails() {
+  const router     = useRouter();
+  const dispatch   = useDispatch();
+  const { connection_id } = useLocalSearchParams();
+
   const { allDetails, allDetailsLoading } = useSelector(
     (s) => s.studentManagement
   );
 
-  const dispatch = useDispatch();
-  const { connection_id } = useLocalSearchParams();
-
   useEffect(() => {
-    dispatch({
-      type: "GET_ALL_DETAILS",
-      payload: { connection_id: connection_id },
-    });
+    dispatch({ type: "GET_ALL_DETAILS", payload: { connection_id } });
   }, [connection_id]);
 
-  // derive fields from API shape
-  const student = allDetails?.student || {};
-  const tuition_details = allDetails?.tuition_details || {};
-  const displayStatus =
+  // ── Derive display data ──────────────────────────────────────────────────
+  const student         = allDetails?.student         || {};
+  const td              = allDetails?.tuition_details || {};
+  const displayStatus   =
     allDetails?.status === "pending"
       ? "pending"
       : allDetails?.status === "accepted" && allDetails?.is_active
         ? "active"
         : "archived";
+  const isMonthly = td?.tuition_type === "monthly_based";
 
-  // visuals
-  const initials = initialsFrom(student?.name || student?.custom_id || "");
-  const avatarColor = stringToColor(
-    student?.name || student?.custom_id || String(student?.id || "")
-  );
+  const STATUS_BADGE = { active: "green", pending: "yellow", archived: "blue" };
+  const statusBadge  = getBadgeStyles(STATUS_BADGE[displayStatus] ?? "blue");
 
-  const isMonthly = tuition_details?.tuition_type === "monthly_based";
-
+  // ── Actions ─────────────────────────────────────────────────────────────
   const onCall = () =>
     student?.phone && Linking.openURL(`tel:${student.phone}`).catch(() => {});
   const onMail = () =>
     student?.email &&
     Linking.openURL(`mailto:${student.email}`).catch(() => {});
-  const onDisconnect = () => {
+  const onDisconnect = () =>
     Alert.alert("Disconnect", `Disconnect ${student?.name}?`, [
       { text: "Cancel" },
       { text: "Disconnect", style: "destructive", onPress: () => {} },
     ]);
-  };
 
+  // ── Loading state ────────────────────────────────────────────────────────
   if (allDetailsLoading) {
     return (
-      <SafeAreaView className="flex-1 items-center justify-center bg-white">
-        <ActivityIndicator size="large"></ActivityIndicator>
-        <Text className="text-gray-500 mt-2">Loading...</Text>
+      <SafeAreaView style={styles.loadingRoot}>
+        <GridBackground>
+          <View style={styles.loadingCenter}>
+            <ActivityIndicator size="large" color={colors.black} />
+            <Text style={styles.loadingText}>Loading…</Text>
+          </View>
+        </GridBackground>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
-      <ScrollView
-        contentContainerStyle={{ padding: 16, paddingBottom: 24 }}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Header card */}
-        <View className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-          <View className="flex-row justify-between items-start">
-            <View className="flex-row items-center">
-              <View
-                className="w-12 h-12 rounded-full items-center justify-center mr-3"
-                style={{ backgroundColor: avatarColor }}
-              >
-                <Text className="text-white font-bold">{initials}</Text>
+    <SafeAreaView style={styles.root}>
+      <GridBackground>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+
+          {/* ── 1. App bar — back nav ── */}
+          <View style={styles.appBar}>
+            <TouchableOpacity
+              onPress={() => router.back()}
+              activeOpacity={0.7}
+              style={styles.backBtn}
+            >
+              <Feather name="arrow-left" size={18} color={colors.black} />
+            </TouchableOpacity>
+            {/* Absolutely centred — never shifts with button width */}
+            <Text style={styles.appBarTitle} numberOfLines={1}>
+              STUDENT DETAILS
+            </Text>
+          </View>
+
+          {/* ── 2. Profile hero card ── */}
+          <ShadowCard
+            shadowSize="lg"
+            borderRadius={radius.card}
+            padding={spacing.xl}
+            style={styles.section}
+          >
+            {/* Avatar + name | status badge */}
+            <View style={styles.profileRow}>
+              <View style={styles.profileLeft}>
+                <Avatar name={student?.name || student?.custom_id} />
+                <View style={styles.profileMeta}>
+                  <Text style={styles.studentName} numberOfLines={1}>
+                    {student?.name || "—"}
+                  </Text>
+                  <Text style={styles.studentEmail} numberOfLines={1}>
+                    {student?.email || "—"}
+                  </Text>
+                </View>
               </View>
-              <View>
-                <Text className="text-[16px] font-semibold text-gray-900">
-                  {student?.name || "—"}
-                </Text>
-                <Text className="text-[12px] text-gray-500">
-                  {student?.email || "—"}
+              <View style={statusBadge.container}>
+                <Text style={statusBadge.text}>
+                  {displayStatus.toUpperCase()}
                 </Text>
               </View>
             </View>
-            <StatusPill status={displayStatus} />
-          </View>
 
-          {/* Quick actions */}
-          <View className="flex-row gap-2 mt-4">
-            <Pressable
-              onPress={onCall}
-              className="flex-1 h-10 rounded-xl items-center justify-center flex-row gap-1"
-              style={{ backgroundColor: "#E0F2FE" }}
-            >
-              <Ionicons name="call-outline" size={16} color="#0369A1" />
-              <Text
-                className="text-[12px] font-semibold"
-                style={{ color: "#0369A1" }}
+            <Divider />
+
+            {/* Action buttons */}
+            <View style={styles.actionsRow}>
+              {/* Call — blue filled */}
+              <TouchableOpacity
+                onPress={onCall}
+                activeOpacity={0.8}
+                style={[styles.actionBtn, styles.actionBtnBlue]}
               >
-                Call
-              </Text>
-            </Pressable>
-            <Pressable
-              onPress={onMail}
-              className="flex-1 h-10 rounded-xl items-center justify-center flex-row gap-1"
-              style={{ backgroundColor: "#EDE9FE" }}
-            >
-              <Ionicons name="mail-outline" size={16} color="#4338CA" />
-              <Text
-                className="text-[12px] font-semibold"
-                style={{ color: "#4338CA" }}
+                <Ionicons name="call-outline" size={15} color={colors.white} />
+                <Text style={[styles.actionBtnText, { color: colors.white }]}>
+                  CALL
+                </Text>
+              </TouchableOpacity>
+
+              {/* Email — outlined */}
+              <TouchableOpacity
+                onPress={onMail}
+                activeOpacity={0.8}
+                style={[styles.actionBtn, styles.actionBtnOutlined]}
               >
-                Email
-              </Text>
-            </Pressable>
-            {allDetails?.is_active ? (
-              <Pressable
-                onPress={onDisconnect}
-                className="h-10 px-3 rounded-xl items-center justify-center flex-row gap-1"
-                style={{ backgroundColor: "#FFE4E6" }}
-              >
-                <Ionicons name="unlink-outline" size={16} color="#BE123C" />
-                <Text
-                  className="text-[12px] font-semibold"
-                  style={{ color: "#BE123C" }}
+                <Ionicons name="mail-outline" size={15} color={colors.black} />
+                <Text style={[styles.actionBtnText, { color: colors.black }]}>
+                  EMAIL
+                </Text>
+              </TouchableOpacity>
+
+              {/* Disconnect — red outlined (only when active) */}
+              {allDetails?.is_active ? (
+                <TouchableOpacity
+                  onPress={onDisconnect}
+                  activeOpacity={0.8}
+                  style={[styles.actionBtn, styles.actionBtnRed]}
                 >
-                  Disconnect
-                </Text>
-              </Pressable>
-            ) : null}
-          </View>
-        </View>
+                  <Ionicons
+                    name="unlink-outline"
+                    size={15}
+                    color={colors.red}
+                  />
+                  <Text style={[styles.actionBtnText, { color: colors.red }]}>
+                    REMOVE
+                  </Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
+          </ShadowCard>
 
-        {/* Student info */}
-        <View className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mt-4">
-          <SectionTitle
-            icon="person-circle-outline"
-            color={C.indigo}
-            title="Student Info"
-          />
-          <InfoRow
-            icon="card-outline"
-            color={C.indigo}
-            label="Student ID"
-            value={student?.custom_id}
-          />
-          <InfoRow
-            icon="call-outline"
-            color={C.sky}
-            label="Phone"
-            value={student?.phone}
-            onPress={onCall}
-          />
-          <InfoRow
-            icon="mail-outline"
-            color={C.violet}
-            label="Email"
-            value={student?.email}
-            onPress={onMail}
-          />
-          <InfoRow
-            icon="checkmark-circle-outline"
-            color={
-              displayStatus === "active"
-                ? C.emerald
-                : displayStatus === "pending"
-                  ? C.amber
-                  : C.slate
-            }
-            label="Status"
-            value={displayStatus?.[0]?.toUpperCase() + displayStatus?.slice(1)}
-          />
-        </View>
+          {/* ── 3. Student info card ── */}
+          <ShadowCard
+            shadowSize="md"
+            borderRadius={radius.card}
+            padding={spacing.lg}
+            style={styles.section}
+          >
+            <SectionLabel title="STUDENT INFO" />
+            <Divider />
 
-        {/* Tuition info */}
-        <View className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mt-4">
-          <SectionTitle
-            icon={isMonthly ? "calendar-outline" : "book-outline"}
-            color={isMonthly ? C.indigo : C.violet}
-            title={`Tuition • ${labelType(tuition_details?.tuition_type)}`}
-            right={
-              <View
-                className="px-2 py-1 rounded-md"
-                style={{ backgroundColor: "#F3F4F6" }}
-              >
-                <Text className="text-[11px] font-semibold text-gray-700">
-                  {tuition_details?.class_level || "—"}
-                </Text>
-              </View>
-            }
-          />
-
-          {/* quick stats */}
-          <View className="flex-row gap-3 mt-1">
-            {isMonthly ? (
-              <>
-                <Stat
-                  label="Days / Week"
-                  value={String(tuition_details?.tuition_days_per_week || "—")}
-                  tone="emerald"
-                />
-                <Stat
-                  label="Hours / Day"
-                  value={String(tuition_details?.hours_per_day || "—")}
-                  tone="sky"
-                />
-              </>
-            ) : (
-              <>
-                <Stat
-                  label="Hours / Class"
-                  value={String(tuition_details?.hours_per_class || "—")}
-                  tone="sky"
-                />
-                <Stat
-                  label="Duration"
-                  value={tuition_details?.duration || "—"}
-                  tone="amber"
-                />
-              </>
-            )}
-          </View>
-
-          {/* basics */}
-          <View className="mt-3">
             <InfoRow
-              icon="language-outline"
-              color={C.violet}
-              label="Medium"
-              value={tuition_details?.medium}
+              circleKey="blue"
+              iconName="card-outline"
+              label="Student ID"
+              value={student?.custom_id}
             />
             <InfoRow
-              icon="home-outline"
-              color={C.blue}
-              label="Institute"
-              value={tuition_details?.institute_name}
+              circleKey="green"
+              iconName="call-outline"
+              label="Phone"
+              value={student?.phone}
+              onPress={onCall}
             />
             <InfoRow
-              icon="location-outline"
-              color={C.rose}
-              label="Address"
-              value={fullAddress(tuition_details)}
+              circleKey="blue"
+              iconName="mail-outline"
+              label="Email"
+              value={student?.email}
+              onPress={onMail}
             />
             <InfoRow
-              icon="flag-outline"
-              color={C.emerald}
-              label="Study Purpose"
-              value={tuition_details?.study_purpose}
+              circleKey={
+                displayStatus === "active"
+                  ? "green"
+                  : displayStatus === "pending"
+                    ? "amber"
+                    : "blue"
+              }
+              iconName="checkmark-circle-outline"
+              label="Status"
+              value={
+                displayStatus.charAt(0).toUpperCase() + displayStatus.slice(1)
+              }
             />
-          </View>
+          </ShadowCard>
 
-          {/* subjects */}
-          <View className="mt-3">
-            <SectionTitle
-              icon="albums-outline"
-              color={C.indigo}
-              title="Subjects"
-            />
-            <View className="flex-row flex-wrap mt-1">
-              {(tuition_details?.subject_list || []).map((s) => (
-                <Chip key={String(s)} label={String(s)} tone="indigo" />
-              ))}
-              {!tuition_details?.subject_list?.length && (
-                <Text className="text-[13px] text-gray-500">—</Text>
+          {/* ── 4. Tuition details card ── */}
+          <ShadowCard
+            shadowSize="md"
+            borderRadius={radius.card}
+            padding={spacing.lg}
+            style={styles.section}
+          >
+            {/* Card header: TUITION · type badge + class level badge */}
+            <View style={styles.tuitionHeader}>
+              <SectionLabel
+                title="TUITION"
+                right={
+                  <View style={styles.tuitionBadges}>
+                    {/* Tuition type */}
+                    <View style={getBadgeStyles("black").container}>
+                      <Text style={getBadgeStyles("black").text}>
+                        {labelType(td?.tuition_type)}
+                      </Text>
+                    </View>
+                    {/* Class level */}
+                    {td?.class_level ? (
+                      <View
+                        style={[
+                          getBadgeStyles("blue").container,
+                          { marginLeft: spacing.xs },
+                        ]}
+                      >
+                        <Text style={getBadgeStyles("blue").text}>
+                          {td.class_level}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
+                }
+              />
+            </View>
+
+            <Divider />
+
+            {/* Mini stats row */}
+            <View style={styles.miniStatsRow}>
+              {isMonthly ? (
+                <>
+                  <MiniStat
+                    circleKey="amber"
+                    iconName="calendar-outline"
+                    label="DAYS / WEEK"
+                    value={String(td?.tuition_days_per_week || "—")}
+                  />
+                  <View style={styles.miniStatDivider} />
+                  <MiniStat
+                    circleKey="green"
+                    iconName="time-outline"
+                    label="HOURS / DAY"
+                    value={String(td?.hours_per_day || "—")}
+                  />
+                </>
+              ) : (
+                <>
+                  <MiniStat
+                    circleKey="green"
+                    iconName="time-outline"
+                    label="HRS / CLASS"
+                    value={String(td?.hours_per_class || "—")}
+                  />
+                  <View style={styles.miniStatDivider} />
+                  <MiniStat
+                    circleKey="coral"
+                    iconName="hourglass-outline"
+                    label="DURATION"
+                    value={td?.duration || "—"}
+                  />
+                </>
               )}
             </View>
-          </View>
 
-          {/* schedule & pay */}
-          {isMonthly ? (
-            <View className="mt-3">
-              <SectionTitle
-                icon="time-outline"
-                color={C.sky}
-                title="Schedule & Pay"
-              />
-              <InfoRow
-                icon="calendar-outline"
-                color={C.sky}
-                label="Starting Month"
-                value={tuition_details?.starting_month}
-              />
-              <InfoRow
-                icon="cash-outline"
-                color={C.emerald}
-                label="Monthly Salary"
-                value={money(tuition_details?.salary_per_month)}
-              />
-              <Text className="text-[11px] text-gray-500 mt-2">Days</Text>
-              <View className="flex-row flex-wrap mt-1">
-                {(tuition_details?.days_name || []).map((d) => (
-                  <Chip key={String(d)} label={String(d)} tone="sky" />
-                ))}
+            <Divider />
+
+            {/* Basics */}
+            <InfoRow
+              circleKey="amber"
+              iconName="language-outline"
+              label="Medium"
+              value={td?.medium}
+            />
+            <InfoRow
+              circleKey="amber"
+              iconName="home-outline"
+              label="Institute"
+              value={td?.institute_name}
+            />
+            <InfoRow
+              circleKey="coral"
+              iconName="location-outline"
+              label="Address"
+              value={fullAddress(td)}
+            />
+            <InfoRow
+              circleKey="green"
+              iconName="flag-outline"
+              label="Study Purpose"
+              value={td?.study_purpose}
+            />
+
+            {/* Sub-section: Subjects */}
+            <View style={styles.subSection}>
+              <View style={styles.subSectionHeader}>
+                <Text style={styles.subSectionLabel}>SUBJECTS</Text>
+              </View>
+              <View style={styles.chipWrap}>
+                {(td?.subject_list || []).length > 0 ? (
+                  td.subject_list.map((s) => (
+                    <TagChip key={String(s)} label={String(s)} variant="blue" />
+                  ))
+                ) : (
+                  <Text style={styles.emptyChipText}>—</Text>
+                )}
               </View>
             </View>
-          ) : (
-            <View className="mt-3">
-              <SectionTitle
-                icon="time-outline"
-                color={C.sky}
-                title="Course Plan & Pay"
-              />
-              <InfoRow
-                icon="reader-outline"
-                color={C.indigo}
-                label="Total Classes"
-                value={String(tuition_details?.total_classes_per_course || "—")}
-              />
-              <InfoRow
-                icon="cash-outline"
-                color={C.emerald}
-                label="Per Subject"
-                value={money(tuition_details?.salary_per_subject)}
-              />
-              <InfoRow
-                icon="wallet-outline"
-                color={C.violet}
-                label="Total Course"
-                value={money(tuition_details?.total_course_completion_salary)}
-              />
-            </View>
-          )}
-        </View>
-      </ScrollView>
+
+            {/* Sub-section: Schedule & Pay */}
+            {isMonthly ? (
+              <View style={styles.subSection}>
+                <View style={styles.subSectionHeader}>
+                  <Text style={styles.subSectionLabel}>SCHEDULE & PAY</Text>
+                </View>
+                <InfoRow
+                  circleKey="amber"
+                  iconName="calendar-outline"
+                  label="Starting Month"
+                  value={td?.starting_month}
+                />
+                <InfoRow
+                  circleKey="green"
+                  iconName="cash-outline"
+                  label="Monthly Salary"
+                  value={money(td?.salary_per_month)}
+                />
+                {/* Day chips */}
+                {(td?.days_name || []).length > 0 && (
+                  <View style={styles.chipWrap}>
+                    {td.days_name.map((d) => (
+                      <TagChip
+                        key={String(d)}
+                        label={String(d)}
+                        variant="yellow"
+                      />
+                    ))}
+                  </View>
+                )}
+              </View>
+            ) : (
+              <View style={styles.subSection}>
+                <View style={styles.subSectionHeader}>
+                  <Text style={styles.subSectionLabel}>COURSE PLAN & PAY</Text>
+                </View>
+                <InfoRow
+                  circleKey="blue"
+                  iconName="reader-outline"
+                  label="Total Classes"
+                  value={String(td?.total_classes_per_course || "—")}
+                />
+                <InfoRow
+                  circleKey="green"
+                  iconName="cash-outline"
+                  label="Per Subject"
+                  value={money(td?.salary_per_subject)}
+                />
+                <InfoRow
+                  circleKey="coral"
+                  iconName="wallet-outline"
+                  label="Total Course"
+                  value={money(td?.total_course_completion_salary)}
+                />
+              </View>
+            )}
+          </ShadowCard>
+
+        </ScrollView>
+      </GridBackground>
     </SafeAreaView>
   );
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Styles
+// ─────────────────────────────────────────────────────────────────────────────
+const styles = StyleSheet.create({
+  // ── Screen shells ─────────────────────────────────────────────────────────
+  root: {
+    flex: 1,
+    backgroundColor: colors.offWhite,
+  },
+  loadingRoot: {
+    flex: 1,
+    backgroundColor: colors.offWhite,
+  },
+  loadingCenter: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.sm,
+  },
+  loadingText: {
+    fontSize: 13,
+    fontWeight: "400",
+    color: colors.textMuted,
+  },
+  scrollContent: {
+    paddingHorizontal: spacing.screenPadding,
+    paddingTop: spacing.lg,
+    paddingBottom: 40,
+  },
+
+  // ── App bar ───────────────────────────────────────────────────────────────
+  appBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: spacing.xxl,
+  },
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.pill,
+    borderWidth: borders.width,
+    borderColor: borders.color,
+    backgroundColor: colors.white,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  appBarTitle: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    textAlign: "center",
+    fontSize: 16,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: -0.2,
+    color: colors.black,
+    // pointerEvents none so touches pass through to the back button
+    pointerEvents: "none",
+  },
+
+  // ── Section spacing ───────────────────────────────────────────────────────
+  section: {
+    marginBottom: spacing.xxl,
+  },
+
+  // ── Divider ───────────────────────────────────────────────────────────────
+  divider: {
+    height: borders.widthDivider,
+    backgroundColor: borders.dividerColor,
+    marginVertical: spacing.md,
+  },
+
+  // ── Section label ─────────────────────────────────────────────────────────
+  sectionLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  sectionLabelText: {
+    fontSize: 16,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: -0.2,
+    color: colors.black,
+  },
+
+  // ── Avatar ────────────────────────────────────────────────────────────────
+  avatar: {
+    width: 52,
+    height: 52,
+    borderRadius: radius.circle,
+    borderWidth: borders.width,
+    borderColor: borders.color,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  avatarText: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: colors.white,
+    letterSpacing: 0.5,
+  },
+
+  // ── Profile hero ──────────────────────────────────────────────────────────
+  profileRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.sm,
+  },
+  profileLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    flex: 1,
+  },
+  profileMeta: {
+    flex: 1,
+  },
+  studentName: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: colors.black,
+  },
+  studentEmail: {
+    fontSize: 11,
+    fontWeight: "500",
+    color: colors.textMeta,
+    marginTop: 2,
+  },
+
+  // ── Action buttons ────────────────────────────────────────────────────────
+  actionsRow: {
+    flexDirection: "row",
+    gap: spacing.sm,
+  },
+  actionBtn: {
+    flex: 1,
+    height: 38,
+    borderRadius: radius.button,
+    borderWidth: borders.width,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.xs,
+  },
+  actionBtnText: {
+    fontSize: 11,
+    fontWeight: "700",
+    textTransform: "uppercase",
+  },
+  actionBtnBlue: {
+    backgroundColor: colors.blue,
+    borderColor: borders.color,
+  },
+  actionBtnOutlined: {
+    backgroundColor: colors.white,
+    borderColor: borders.color,
+  },
+  actionBtnRed: {
+    backgroundColor: colors.white,
+    borderColor: colors.red,
+  },
+
+  // ── Info row ──────────────────────────────────────────────────────────────
+  infoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    paddingVertical: 10,
+  },
+  infoCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: radius.circle,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  infoRowText: {
+    flex: 1,
+  },
+  infoRowLabel: {
+    fontSize: 10,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 1,
+    color: colors.textMeta,
+  },
+  infoRowValue: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: colors.black,
+    marginTop: 2,
+  },
+
+  // ── Mini stat ─────────────────────────────────────────────────────────────
+  miniStatsRow: {
+    flexDirection: "row",
+    backgroundColor: colors.offWhite,
+    borderRadius: radius.cardSm,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    marginBottom: spacing.xs,
+  },
+  miniStat: {
+    flex: 1,
+    alignItems: "center",
+    gap: spacing.xs,
+  },
+  miniStatCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: radius.circle,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  miniStatValue: {
+    fontSize: 20,
+    fontWeight: "800",
+    letterSpacing: -0.5,
+    color: colors.black,
+  },
+  miniStatLabel: {
+    fontSize: 9,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 1,
+    color: colors.textMeta,
+  },
+  miniStatDivider: {
+    width: 1,
+    backgroundColor: borders.dividerColor,
+    marginHorizontal: spacing.md,
+  },
+
+  // ── Tuition card header ───────────────────────────────────────────────────
+  tuitionHeader: {
+    marginBottom: 0,
+  },
+  tuitionBadges: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  // ── Sub-section (inside tuition card) ────────────────────────────────────
+  subSection: {
+    marginTop: spacing.sm,
+  },
+  subSectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: spacing.sm,
+    borderTopWidth: borders.widthDivider,
+    borderTopColor: borders.dividerColor,
+    marginTop: spacing.xs,
+  },
+  subSectionLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 1.2,
+    color: colors.textSecondary,
+  },
+
+  // ── Chip wrap ─────────────────────────────────────────────────────────────
+  chipWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  emptyChipText: {
+    fontSize: 13,
+    fontWeight: "400",
+    color: colors.textMeta,
+  },
+});
